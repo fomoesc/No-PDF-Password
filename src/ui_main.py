@@ -560,8 +560,12 @@ class MainWindow(QMainWindow):
         file_path_str = item.data(Qt.ItemDataRole.UserRole)
         if not file_path_str:
             return
-        # 只有待手动处理的才弹窗
-        if "待手动处理" not in item.text():
+        # 通过widget的状态标签判断是否需要弹窗
+        w = self.decrypt_page.pdf_list.itemWidget(item)
+        if not w:
+            return
+        status_text = w.status_label.text()
+        if "待手动处理" not in status_text:
             return
         password, ok = QInputDialog.getText(
             self, "手动解密",
