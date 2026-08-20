@@ -81,47 +81,58 @@ def try_decrypt_pdf(pdf_path: Path, password: str) -> bool:
     Returns:
         True表示解密成功并保存，False表示密码错误或失败
     """
+    temp_path = pdf_path.with_suffix(".pdf.tmp")
+    
     try:
+        # 第一步：用密码打开并保存到临时文件
         with pikepdf.open(pdf_path, password=password) as pdf:
-            # 解密成功，验证PDF结构完整性
             page_count = len(pdf.pages)
             if page_count == 0:
-                return False  # 空PDF视为失败
+                return False
             
-            # 移除加密信息 - 这是关键步骤！
-            # pikepdf 默认保存时会保留加密，必须显式删除
+            # 移除加密信息
             if pdf.is_encrypted:
                 try:
-                    # 删除 /Encrypt 字典来移除加密
                     del pdf.trailer['/Encrypt']
                 except KeyError:
-                    pass  # 如果没有 /Encrypt 字典，跳过
+                    pass
             
-            # 先保存到临时文件，验证无误后再覆盖
-            temp_path = pdf_path.with_suffix(".pdf.tmp")
+            # 保存到临时文件
+            pdf.save(temp_path, encryption=False)
+        
+        # 注意：这里 with 块已结束，源文件已关闭
+        
+        # 第二步：验证临时文件（在独立的 with 块中）
+        try:
+            with pikepdf.open(temp_path) as verify_pdf:
+                if len(verify_pdf.pages) != page_count:
+                    temp_path.unlink(missing_ok=True)
+                    return False
+        except Exception:
+            temp_path.unlink(missing_ok=True)
+            return False
+        
+        # 第三步：验证通过后，删除原文件，重命名临时文件
+        # 在 Windows 上需要先删除再重命名，因为 replace 可能失败
+        try:
+            pdf_path.unlink()  # 删除原文件
+            temp_path.rename(pdf_path)  # 重命名临时文件
+            return True
+        except Exception:
+            # 如果失败，尝试直接替换
             try:
-                # 保存时指定 encryption=False 确保不加密
-                pdf.save(temp_path, encryption=False)
-                
-                # 验证临时文件可以正常打开（无密码）
-                with pikepdf.open(temp_path) as verify_pdf:
-                    if len(verify_pdf.pages) == page_count:
-                        # 验证通过，覆盖原文件
-                        temp_path.replace(pdf_path)
-                        return True
-                    else:
-                        # 页数不匹配，删除临时文件
-                        temp_path.unlink(missing_ok=True)
-                        return False
-            except Exception as e:
-                # 保存或验证失败，删除临时文件
+                temp_path.replace(pdf_path)
+                return True
+            except Exception:
                 temp_path.unlink(missing_ok=True)
                 return False
                 
     except pikepdf.PasswordError:
-        return False  # 密码错误
+        temp_path.unlink(missing_ok=True)
+        return False
     except Exception as e:
-        return False  # 其他错误
+        temp_path.unlink(missing_ok=True)
+        return False
 
 
 def process_single_pdf(pdf_path: Path, passwords: List[str]) -> PDFResult:
