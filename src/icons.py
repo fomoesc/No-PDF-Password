@@ -29,6 +29,7 @@ class PDFIconWidget(QWidget):
     def __init__(self, size: int = 36, parent=None):
         super().__init__(parent)
         self.setFixedSize(size, int(size * 1.2))
+        self.setStyleSheet("background:transparent;")
 
     def paintEvent(self, event):
         p = QPainter(self)

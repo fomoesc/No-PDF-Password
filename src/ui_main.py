@@ -407,9 +407,6 @@ class DecryptPage(QWidget):
             QListWidget::item:selected {{
                 background: {PRIMARY_LIGHT};
             }}
-            QListWidget::item:hover {{
-                background: {HOVER_BG};
-            }}
             QScrollBar:vertical {{
                 width: 6px;
                 background: transparent;
