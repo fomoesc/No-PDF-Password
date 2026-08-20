@@ -619,7 +619,7 @@ class PasswordPage(QWidget):
         btn_row.addWidget(self.btn_delete)
 
         vl.addLayout(btn_row)
-        parent.addWidget(card)
+        layout.addWidget(card)
 
         # 加载密码
         self._load_passwords()
