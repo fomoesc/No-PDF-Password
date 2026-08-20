@@ -8,10 +8,10 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QListWidget, QListWidgetItem,
     QProgressBar, QFileDialog, QMessageBox, QFrame, QStackedWidget,
-    QAbstractItemView
+    QAbstractItemView, QGraphicsDropShadowEffect
 )
-from PySide6.QtCore import Qt, QThread, Signal, QSize
-from PySide6.QtGui import QFont, QColor, QIcon, QPixmap, QPainter, QPainterPath
+from PySide6.QtCore import Qt, QThread, Signal, QSize, QUrl
+from PySide6.QtGui import QFont, QColor, QIcon, QPixmap, QPainter, QPainterPath, QDesktopServices
 
 import qtawesome as qta
 
@@ -34,9 +34,7 @@ PRIMARY_HOVER = "#4096ff"
 PRIMARY_PRESSED = "#0958d9"
 PRIMARY_DISABLED = "#91caff"
 SUCCESS = "#52c41a"
-SUCCESS_LIGHT = "#f6ffed"
 ERROR = "#ff4d4f"
-ERROR_LIGHT = "#fff2f0"
 TEXT = "#262626"
 TEXT_SEC = "#8c8c8c"
 TEXT_LIGHT = "#bfbfbf"
@@ -46,20 +44,27 @@ SIDEBAR_W = 200
 
 
 # ============================================================
+# 辅助：给卡片添加阴影
+# ============================================================
+def add_shadow(widget: QWidget):
+    shadow = QGraphicsDropShadowEffect()
+    shadow.setBlurRadius(20)
+    shadow.setOffset(0, 2)
+    shadow.setColor(QColor(0, 0, 0, 30))
+    widget.setGraphicsEffect(shadow)
+
+
+# ============================================================
 # 左侧导航栏
 # ============================================================
 class SidebarWidget(QFrame):
-    nav_clicked = Signal(int)  # 0=解密, 1=密码库
+    nav_clicked = Signal(int)
 
     def __init__(self):
         super().__init__()
         self.setFixedWidth(SIDEBAR_W)
-        self.setStyleSheet(f"""
-            SidebarWidget {{
-                background: {WHITE};
-                border-right: 1px solid {BORDER};
-            }}
-        """)
+        # 与右侧同色背景，无边框
+        self.setStyleSheet(f"SidebarWidget {{ background: {BG}; }}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 24, 16, 16)
@@ -78,7 +83,6 @@ class SidebarWidget(QFrame):
         lp.setPen(Qt.PenStyle.NoPen)
         lp.drawRoundedRect(0, 0, 40, 40, 10, 10)
         lp.end()
-        # 画白色锁在上面
         lock_icon = qta.icon("fa6s.lock", color="white")
         lock_pixmap = lock_icon.pixmap(20, 20)
         p2 = QPainter(logo_pixmap)
@@ -109,37 +113,35 @@ class SidebarWidget(QFrame):
 
         self.nav_btns = []
 
-        # 解密
         self.nav_decrypt = self._nav_item("fa6s.table-cells", "解密", active=True, idx=0)
         self.nav_btns.append(self.nav_decrypt)
         layout.addWidget(self.nav_decrypt)
         layout.addSpacing(4)
 
-        # 密码库
         self.nav_password = self._nav_item("fa6s.key", "密码库", active=False, idx=1)
         self.nav_btns.append(self.nav_password)
         layout.addWidget(self.nav_password)
 
         layout.addStretch()
 
-        # ---------- 安全提示卡片 ----------
+        # ---------- 安全提示卡片（白色背景）----------
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
-                background: {PRIMARY_LIGHT};
+                background: {WHITE};
                 border-radius: 8px;
             }}
         """)
+        add_shadow(card)
         cl = QVBoxLayout(card)
         cl.setContentsMargins(14, 14, 14, 14)
         cl.setSpacing(6)
 
         shield_row = QHBoxLayout()
         shield_row.setSpacing(6)
-        shield_icon = qta.icon("fa6s.shield-halved", color=PRIMARY)
-        si = QLabel()
-        si.setPixmap(shield_icon.pixmap(16, 16))
-        shield_row.addWidget(si)
+        shield_ic = QLabel()
+        shield_ic.setPixmap(qta.icon("fa6s.shield-halved", color=PRIMARY).pixmap(16, 16))
+        shield_row.addWidget(shield_ic)
         st = QLabel("安全 & 隐私")
         st.setFont(QFont("Microsoft YaHei", 10, QFont.Bold))
         st.setStyleSheet(f"color:{PRIMARY};background:transparent;")
@@ -155,13 +157,24 @@ class SidebarWidget(QFrame):
 
         layout.addWidget(card)
 
-        # ---------- 版本号 ----------
+        # ---------- 版本号（无多余背景，fomoesc可点击）----------
         layout.addSpacing(12)
+        ver_row = QHBoxLayout()
+        ver_row.setSpacing(4)
+        ver_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # fomoesc 链接
+        link_label = QLabel('<a href="https://github.com/fomoesc" style="color:#bfbfbf;text-decoration:none;">fomoesc</a>')
+        link_label.setFont(QFont("Microsoft YaHei", 9))
+        link_label.setOpenExternalLinks(True)
+        ver_row.addWidget(link_label)
+
         ver = QLabel("v1.0.0")
         ver.setFont(QFont("Microsoft YaHei", 9))
         ver.setStyleSheet(f"color:{TEXT_LIGHT};")
-        ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(ver)
+        ver_row.addWidget(ver)
+
+        layout.addLayout(ver_row)
 
     def _nav_item(self, icon_name: str, text: str, active: bool, idx: int) -> QWidget:
         w = QWidget()
@@ -193,30 +206,23 @@ class SidebarWidget(QFrame):
                 QWidget:hover {{ background: {HOVER_BG}; }}
             """)
 
-        # 存储状态
         w._idx = idx
         w._active = active
         w._icon_name = icon_name
         w._text = text
-
-        # 点击事件
         w.mousePressEvent = lambda e, i=idx: self.nav_clicked.emit(i)
 
         return w
 
     def set_active(self, idx: int):
-        """设置激活的导航项"""
         for i, btn in enumerate(self.nav_btns):
             is_active = (i == idx)
             color = PRIMARY if is_active else TEXT_SEC
-            # 更新图标
             icon_lbl = btn.findChildren(QLabel)[0]
             icon_lbl.setPixmap(qta.icon(btn._icon_name, color=color).pixmap(18, 18))
-            # 更新文字
             text_lbl = btn.findChildren(QLabel)[1]
             fw = "bold" if is_active else "normal"
             text_lbl.setStyleSheet(f"color:{color};font-weight:{fw};background:transparent;")
-            # 更新背景
             if is_active:
                 btn.setStyleSheet(f"QWidget {{ background: {PRIMARY_LIGHT}; border-radius: 8px; }}")
             else:
@@ -227,7 +233,7 @@ class SidebarWidget(QFrame):
 
 
 # ============================================================
-# PDF列表项
+# PDF列表项（无垃圾桶图标，无底部线条）
 # ============================================================
 class PDFItemWidget(QWidget):
     def __init__(self, file_path: str, parent=None):
@@ -262,12 +268,8 @@ class PDFItemWidget(QWidget):
         self.status_label.setStyleSheet(f"color:{TEXT_SEC};")
         hl.addWidget(self.status_label)
 
-        # 删除图标
-        self.trash_icon = QLabel()
-        self.trash_icon.setPixmap(qta.icon("fa6s.trash-can", color="#bfbfbf").pixmap(16, 16))
-        self.trash_icon.setFixedSize(16, 16)
-        self.trash_icon.setCursor(Qt.CursorShape.PointingHandCursor)
-        hl.addWidget(self.trash_icon)
+        # 占位，保持右侧对齐
+        hl.addSpacing(20)
 
     def set_status(self, status_text: str, icon_name: str = "", color: str = ""):
         self.status_label.setText(status_text)
@@ -295,6 +297,7 @@ class DecryptPage(QWidget):
     def _build_scan_card(self, parent: QVBoxLayout):
         card = QFrame()
         card.setStyleSheet(f"QFrame {{ background: {WHITE}; border-radius: 12px; }}")
+        add_shadow(card)
         vl = QVBoxLayout(card)
         vl.setContentsMargins(24, 20, 24, 20)
         vl.setSpacing(16)
@@ -379,6 +382,7 @@ class DecryptPage(QWidget):
     def _build_list_card(self, parent: QVBoxLayout):
         card = QFrame()
         card.setStyleSheet(f"QFrame {{ background: {WHITE}; border-radius: 12px; }}")
+        add_shadow(card)
         vl = QVBoxLayout(card)
         vl.setContentsMargins(24, 20, 24, 12)
         vl.setSpacing(0)
@@ -398,7 +402,6 @@ class DecryptPage(QWidget):
             }}
             QListWidget::item {{
                 background: transparent;
-                border-bottom: 1px solid {BORDER};
                 padding: 0;
             }}
             QListWidget::item:selected {{
@@ -424,9 +427,9 @@ class DecryptPage(QWidget):
         parent.addWidget(card, 1)
 
     def _build_stats_bar(self, parent: QVBoxLayout):
-        bar = QFrame()
-        bar.setFixedHeight(56)
-        bar.setStyleSheet(f"QFrame {{ background: {WHITE}; border-radius: 12px; }}")
+        # 无背景的统计栏
+        bar = QWidget()
+        bar.setFixedHeight(48)
         hl = QHBoxLayout(bar)
         hl.setContentsMargins(24, 0, 24, 0)
         hl.setSpacing(24)
@@ -453,7 +456,7 @@ class DecryptPage(QWidget):
         """)
         hl.addWidget(self.progress_bar, 1)
 
-        # 统计项
+        # 统计项（无背景）
         self.stat_success = self._stat("fa6s.circle-check", "0", "已成功", SUCCESS)
         self.stat_no_pwd = self._stat("fa6s.lock", "0", "无需处理", PRIMARY)
         self.stat_failed = self._stat("fa6s.trash-can", "0", "失败", ERROR)
@@ -507,6 +510,7 @@ class PasswordPage(QWidget):
         # 标题卡片
         card = QFrame()
         card.setStyleSheet(f"QFrame {{ background: {WHITE}; border-radius: 12px; }}")
+        add_shadow(card)
         vl = QVBoxLayout(card)
         vl.setContentsMargins(24, 20, 24, 20)
         vl.setSpacing(16)
@@ -527,7 +531,7 @@ class PasswordPage(QWidget):
         title_row.addWidget(self.count_label)
         vl.addLayout(title_row)
 
-        # 密码列表
+        # 密码列表（选中时微变色，双击不变色）
         self.pwd_list = QListWidget()
         self.pwd_list.setStyleSheet(f"""
             QListWidget {{
@@ -539,9 +543,10 @@ class PasswordPage(QWidget):
             QListWidget::item {{
                 padding: 10px 16px;
                 border-bottom: 1px solid {BORDER};
+                color: {TEXT};
             }}
             QListWidget::item:selected {{
-                background: {PRIMARY_LIGHT};
+                background: #f0f5ff;
             }}
             QListWidget::item:hover {{
                 background: {HOVER_BG};
@@ -621,7 +626,6 @@ class PasswordPage(QWidget):
         vl.addLayout(btn_row)
         layout.addWidget(card)
 
-        # 加载密码
         self._load_passwords()
 
     def _load_passwords(self):
@@ -631,8 +635,7 @@ class PasswordPage(QWidget):
         self._update_count()
 
     def _update_count(self):
-        count = self.pwd_list.count()
-        self.count_label.setText(f"共 {count} 个密码")
+        self.count_label.setText(f"共 {self.pwd_list.count()} 个密码")
 
     def _add_password(self):
         pwd = self.pwd_input.text().strip()
@@ -690,9 +693,19 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # 左侧导航
+        # 左侧导航（与右侧同背景色）
         self.sidebar = SidebarWidget()
         root.addWidget(self.sidebar)
+
+        # 分割渐变线
+        separator = QLabel()
+        separator.setFixedWidth(2)
+        separator.setStyleSheet(f"""
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(0,0,0,0), stop:0.3 rgba(0,0,0,0.08),
+                stop:0.7 rgba(0,0,0,0.08), stop:1 rgba(0,0,0,0));
+        """)
+        root.addWidget(separator)
 
         # 右侧内容区
         content = QWidget()
@@ -701,7 +714,6 @@ class MainWindow(QMainWindow):
         cl.setContentsMargins(24, 24, 24, 20)
         cl.setSpacing(0)
 
-        # 页面切换
         self.stack = QStackedWidget()
         self.decrypt_page = DecryptPage()
         self.password_page = PasswordPage(self.config)
@@ -712,10 +724,7 @@ class MainWindow(QMainWindow):
         root.addWidget(content, 1)
 
     def _connect_signals(self):
-        # 侧边栏导航
         self.sidebar.nav_clicked.connect(self._switch_page)
-
-        # 解密页面信号
         dp = self.decrypt_page
         dp.btn_browse.clicked.connect(self._browse_folder)
         dp.btn_start.clicked.connect(self._start_decrypt)
@@ -796,7 +805,7 @@ class MainWindow(QMainWindow):
                     elif result.status == PDFStatus.DECRYPTED:
                         w.set_status("已删除密码", "fa6s.circle-check", SUCCESS)
                     elif result.status == PDFStatus.NEED_MANUAL:
-                        w.set_status("待手动处理", "fa6s.trash-can", ERROR)
+                        w.set_status("待手动处理", "fa6s.circle-xmark", ERROR)
                 break
 
         self._refresh_stats()
