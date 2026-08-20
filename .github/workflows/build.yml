@@ -1,0 +1,93 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 推送 v 开头的标签时触发
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Build macOS app
+        run: |
+          pyinstaller --onefile --windowed \
+            --name "No PDF Password" \
+            --add-data "config.json:." \
+            --add-data "src:src" \
+            main.py
+      
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: No-PDF-Password-macOS
+          path: dist/No PDF Password
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Build Windows exe
+        run: |
+          pyinstaller --onefile --windowed `
+            --name "No PDF Password" `
+            --add-data "config.json;." `
+            --add-data "src;src" `
+            main.py
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: No-PDF-Password-Windows
+          path: dist/No PDF Password.exe
+
+  release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: No-PDF-Password-macOS
+          path: ./mac
+      
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: No-PDF-Password-Windows
+          path: ./win
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./mac/No PDF Password
+            ./win/No PDF Password.exe
+          generate_release_notes: true
