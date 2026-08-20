@@ -149,7 +149,7 @@ class SidebarWidget(QFrame):
         link.setFont(QFont("Microsoft YaHei", 9))
         link.setOpenExternalLinks(True)
         vr.addWidget(link)
-        ver = QLabel("v1.1.0")
+        ver = QLabel("v1.1.1")
         ver.setFont(QFont("Microsoft YaHei", 9))
         ver.setStyleSheet(f"color:{TEXT_LIGHT};")
         vr.addWidget(ver)

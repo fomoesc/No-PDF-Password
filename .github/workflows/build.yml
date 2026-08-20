@@ -3,8 +3,8 @@ name: Build Release
 on:
   push:
     tags:
-      - 'v*'  # 推送 v 开头的标签时触发
-  workflow_dispatch:  # 支持手动触发
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-mac:
@@ -26,6 +26,7 @@ jobs:
         run: |
           pyinstaller --onefile --windowed \
             --name "No PDF Password" \
+            --icon icon.ico \
             --add-data "config.json:." \
             --add-data "src:src" \
             main.py
@@ -71,6 +72,7 @@ jobs:
         run: |
           pyinstaller --onefile --windowed `
             --name "No PDF Password" `
+            --icon icon.ico `
             --add-data "config.json;." `
             --add-data "src;src" `
             main.py
