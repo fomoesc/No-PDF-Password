@@ -29,15 +29,12 @@ PDF批量解锁工具。自动遍历文件夹中所有PDF文件，用预设密�
 2. **点击"选择文件夹"** → 选择包含PDF的文件夹
 3. **点击"开始解密"** → 工具自动扫描并处理所有PDF
 4. **查看结果**：
-   - ✅ 已删除密码 → 音频处理完成
+   - ✅ 已删除密码 → 处理完成
    - ⏭ 无密码 → 无需处理
    - ❌ 待手动处理 → 双击该文件，输入密码解锁
 5. **管理密码库**：切换到"密码库"选项卡，可添加或删除预设密码
 
 ## 默认密码
-
-软件首次运行时，密码库中包含一个默认密码：
-- `paper-replika.com`
 
 你可以随时在"密码库"选项卡中添加更多密码。
 
@@ -49,26 +46,6 @@ pip install -r requirements.txt
 
 # 运行
 python main.py
-```
-
-## 打包
-
-### macOS
-```bash
-chmod +x build_mac.sh
-./build_mac.sh
-```
-
-### Windows
-双击 `build_windows.bat`
-
-## GitHub Actions 自动构建
-
-推送 `v` 开头的标签（如 `v1.0.0`）会自动触发构建，生成 macOS 和 Windows 两个版本的安装包。
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
 ```
 
 ## 技术栈
