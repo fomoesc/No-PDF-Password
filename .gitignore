@@ -10,4 +10,8 @@ venv/
 .env
 *.dmg
 *.exe
+config.json
+*.pdf
+*.jpg
+*.png
 "*.jpg"  
