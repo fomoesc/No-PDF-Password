@@ -199,7 +199,26 @@ class SidebarWidget(QFrame):
 
 
 # ============================================================
-# PDF列表项（无垃圾桶，无底部线条，无选中高亮）
+# 省略号标签
+# ============================================================
+class ElidedLabel(QLabel):
+    """文本过长时自动显示省略号"""
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setStyleSheet(f"color:{TEXT};background:transparent;")
+
+    def paintEvent(self, event):
+        from PySide6.QtGui import QPainter, QFontMetrics
+        p = QPainter(self)
+        p.setFont(self.font())
+        metrics = QFontMetrics(self.font())
+        elided = metrics.elidedText(self.text(), Qt.TextElideMode.ElideRight, self.width())
+        p.drawText(self.rect(), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, elided)
+        p.end()
+
+
+# ============================================================
+# PDF列表项
 # ============================================================
 class PDFItemWidget(QWidget):
     def __init__(self, file_path, parent=None):
@@ -212,26 +231,39 @@ class PDFItemWidget(QWidget):
         hl.setContentsMargins(20, 0, 20, 0)
         hl.setSpacing(12)
 
+        # 第一列：PDF图标 + 文件名（省略号）
         self.pdf_icon = PDFIconWidget(28)
         hl.addWidget(self.pdf_icon)
 
-        self.name_label = QLabel(self.file_name)
+        self.name_label = ElidedLabel(self.file_name)
         self.name_label.setFont(QFont("Microsoft YaHei", 11))
-        self.name_label.setStyleSheet(f"color:{TEXT};background:transparent;")
-        hl.addWidget(self.name_label, 1)
+        self.name_label.setMinimumWidth(400)  # 文件名最小宽度
+        hl.addWidget(self.name_label, 1)  # stretch=1 让文件名占据剩余空间
 
+        # 第二列：处理状态（固定宽度，始终可见）
         self.status_icon = QLabel()
         self.status_icon.setFixedSize(18, 18)
         self.status_icon.setStyleSheet("background:transparent;")
         self.status_icon.setVisible(False)
-        hl.addWidget(self.status_icon)
 
         self.status_label = QLabel("等待处理...")
         self.status_label.setFont(QFont("Microsoft YaHei", 10))
         self.status_label.setStyleSheet(f"color:{TEXT_SEC};background:transparent;")
-        hl.addWidget(self.status_label)
+        self.status_label.setFixedWidth(120)  # 状态列固定宽度
 
-        hl.addSpacing(20)
+        # 状态容器（图标+文字）
+        self.status_container = QWidget()
+        self.status_container.setFixedWidth(140)
+        self.status_container.setStyleSheet("background:transparent;")
+        status_layout = QHBoxLayout(self.status_container)
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        status_layout.setSpacing(6)
+        status_layout.addWidget(self.status_icon)
+        status_layout.addWidget(self.status_label)
+        status_layout.addStretch()
+
+        hl.addWidget(self.status_container)
+        hl.addSpacing(10)
 
     def set_status(self, text, icon_name="", color=""):
         self.status_label.setText(text)
@@ -501,8 +533,7 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self):
         self.setWindowTitle("No PDF Password")
-        self.setMinimumSize(960, 620)
-        self.resize(1060, 680)
+        self.setFixedSize(1600, 1200)
         self.setStyleSheet(f"QMainWindow {{ background: {BG}; }}")
 
         central = QWidget()
