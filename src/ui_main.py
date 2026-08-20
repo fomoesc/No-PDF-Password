@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView, QGraphicsDropShadowEffect, QInputDialog, QMenu
 )
 from PySide6.QtGui import QFont, QColor, QPixmap, QPainter, QDesktopServices
-from PySide6.QtCore import Qt, QThread, Signal, QSize
+from PySide6.QtCore import Qt, QThread, Signal, QSize, QUrl
 from PySide6.QtGui import QFont, QColor, QPixmap, QPainter
 
 import qtawesome as qta
