@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView
 )
 from PySide6.QtCore import Qt, QThread, Signal, QSize
-from PySide6.QtGui import QFont, QColor, QIcon, QPixmap
+from PySide6.QtGui import QFont, QColor, QIcon, QPixmap, QPainter, QPainterPath
 
 import qtawesome as qta
 
