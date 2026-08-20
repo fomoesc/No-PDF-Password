@@ -58,11 +58,14 @@ def check_pdf_encrypted(pdf_path: Path) -> bool:
         True表示加密，False表示无密码
     """
     try:
+        # 尝试不提供密码打开，如果抛出 PasswordError 则说明加密
         with pikepdf.open(pdf_path) as pdf:
-            # 如果能直接打开且没有加密标记，则无密码
-            return pdf.is_encrypted
+            # 能直接打开，检查是否有 /Encrypt 字典
+            if '/Encrypt' in pdf.trailer:
+                return True
+            return False
     except pikepdf.PasswordError:
-        return True
+        return True  # 需要密码，肯定是加密的
     except Exception:
         return True  # 其他错误保守认为是加密
 
@@ -81,17 +84,26 @@ def try_decrypt_pdf(pdf_path: Path, password: str) -> bool:
     try:
         with pikepdf.open(pdf_path, password=password) as pdf:
             # 解密成功，验证PDF结构完整性
-            # 尝试读取页数来验证文件完整性
             page_count = len(pdf.pages)
             if page_count == 0:
                 return False  # 空PDF视为失败
             
+            # 移除加密信息 - 这是关键步骤！
+            # pikepdf 默认保存时会保留加密，必须显式删除
+            if pdf.is_encrypted:
+                try:
+                    # 删除 /Encrypt 字典来移除加密
+                    del pdf.trailer['/Encrypt']
+                except KeyError:
+                    pass  # 如果没有 /Encrypt 字典，跳过
+            
             # 先保存到临时文件，验证无误后再覆盖
             temp_path = pdf_path.with_suffix(".pdf.tmp")
             try:
-                pdf.save(temp_path)
+                # 保存时指定 encryption=False 确保不加密
+                pdf.save(temp_path, encryption=False)
                 
-                # 验证临时文件可以正常打开
+                # 验证临时文件可以正常打开（无密码）
                 with pikepdf.open(temp_path) as verify_pdf:
                     if len(verify_pdf.pages) == page_count:
                         # 验证通过，覆盖原文件
@@ -101,14 +113,14 @@ def try_decrypt_pdf(pdf_path: Path, password: str) -> bool:
                         # 页数不匹配，删除临时文件
                         temp_path.unlink(missing_ok=True)
                         return False
-            except Exception:
+            except Exception as e:
                 # 保存或验证失败，删除临时文件
                 temp_path.unlink(missing_ok=True)
                 return False
                 
     except pikepdf.PasswordError:
         return False  # 密码错误
-    except Exception:
+    except Exception as e:
         return False  # 其他错误
 
 
