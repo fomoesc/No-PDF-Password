@@ -7,8 +7,9 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QListWidget, QListWidgetItem,
     QProgressBar, QFileDialog, QMessageBox, QFrame, QStackedWidget,
-    QAbstractItemView, QGraphicsDropShadowEffect, QInputDialog
+    QAbstractItemView, QGraphicsDropShadowEffect, QInputDialog, QMenu
 )
+from PySide6.QtGui import QFont, QColor, QPixmap, QPainter, QDesktopServices
 from PySide6.QtCore import Qt, QThread, Signal, QSize
 from PySide6.QtGui import QFont, QColor, QPixmap, QPainter
 
@@ -538,6 +539,9 @@ class MainWindow(QMainWindow):
         dp.btn_browse.clicked.connect(self._browse_folder)
         dp.btn_start.clicked.connect(self._start_decrypt)
         dp.pdf_list.itemDoubleClicked.connect(self._on_item_double_clicked)
+        # 右键菜单
+        dp.pdf_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        dp.pdf_list.customContextMenuRequested.connect(self._show_context_menu)
 
     def _switch_page(self, idx):
         self.stack.setCurrentIndex(idx)
@@ -580,6 +584,68 @@ class MainWindow(QMainWindow):
                 if w:
                     w.set_status("已删除密码", "fa6s.circle-check", SUCCESS)
                 # 更新结果
+                for r in self.pdf_results:
+                    if str(r.file_path) == file_path_str:
+                        r.status = PDFStatus.DECRYPTED
+                        break
+                self._refresh_stats()
+                QMessageBox.information(self, "成功", "密码已成功删除！")
+            else:
+                QMessageBox.warning(self, "失败", msg)
+
+    def _show_context_menu(self, pos):
+        """右键菜单 - 手动解密 / 打开所在文件夹"""
+        item = self.decrypt_page.pdf_list.itemAt(pos)
+        if not item:
+            return
+        file_path_str = item.data(Qt.ItemDataRole.UserRole)
+        if not file_path_str:
+            return
+
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background: {WHITE};
+                border: 1px solid {BORDER};
+                border-radius: 8px;
+                padding: 6px;
+            }}
+            QMenu::item {{
+                padding: 8px 32px 8px 12px;
+                border-radius: 6px;
+                color: {TEXT};
+            }}
+            QMenu::item:selected {{
+                background: {PRIMARY_LIGHT};
+                color: {PRIMARY};
+            }}
+        """)
+
+        # 手动解密
+        act_manual = menu.addAction(qta.icon("fa6s.pen", color=TEXT), "手动解密")
+        # 打开所在文件夹
+        act_folder = menu.addAction(qta.icon("fa6s.folder-open", color=TEXT), "打开所在文件夹")
+
+        action = menu.exec(self.decrypt_page.pdf_list.mapToGlobal(pos))
+        if action == act_manual:
+            self._manual_decrypt_item(item, file_path_str)
+        elif action == act_folder:
+            folder = str(Path(file_path_str).parent)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
+    def _manual_decrypt_item(self, item, file_path_str):
+        """手动解密 - 弹出密码输入框"""
+        password, ok = QInputDialog.getText(
+            self, "手动解密",
+            f"文件：{Path(file_path_str).name}\n\n请输入密码：",
+            QLineEdit.EchoMode.Password
+        )
+        if ok and password:
+            success, msg = decrypt_with_password(Path(file_path_str), password)
+            if success:
+                w = self.decrypt_page.pdf_list.itemWidget(item)
+                if w:
+                    w.set_status("已删除密码", "fa6s.circle-check", SUCCESS)
                 for r in self.pdf_results:
                     if str(r.file_path) == file_path_str:
                         r.status = PDFStatus.DECRYPTED
