@@ -30,11 +30,28 @@ jobs:
             --add-data "src:src" \
             main.py
       
+      - name: Create DMG
+        run: |
+          brew install create-dmg
+          mkdir -p No-PDF-Password-dmg
+          cp "dist/No PDF Password" "No-PDF-Password-dmg/"
+          create-dmg \
+            --volname "No PDF Password" \
+            --volicon "icon.icns" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "No PDF Password" 200 190 \
+            --hide-extension "No PDF Password" \
+            --app-drop-link 600 185 \
+            "No-PDF-Password.dmg" \
+            "No-PDF-Password-dmg/"
+      
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: No-PDF-Password-macOS
-          path: dist/No PDF Password
+          path: No-PDF-Password.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -88,6 +105,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ./mac/No PDF Password
+            ./mac/No-PDF-Password.dmg
             ./win/No PDF Password.exe
           generate_release_notes: true
