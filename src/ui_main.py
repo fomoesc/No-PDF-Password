@@ -40,7 +40,7 @@ TEXT_SEC = "#8c8c8c"
 TEXT_LIGHT = "#bfbfbf"
 BORDER = "#e8e8e8"
 HOVER_BG = "#f5f5f5"
-SIDEBAR_W = 200
+SIDEBAR_W = 240
 
 
 def add_shadow(widget: QWidget):
@@ -227,48 +227,47 @@ class PDFItemWidget(QWidget):
         self.file_name = Path(file_path).name
         self.setFixedHeight(48)
 
+        # 主水平布局
         hl = QHBoxLayout(self)
-        hl.setContentsMargins(20, 0, 20, 0)
+        hl.setContentsMargins(24, 0, 24, 0)
         hl.setSpacing(12)
 
-        # 第一列：PDF图标 + 文件名（省略号）
-        self.pdf_icon = PDFIconWidget(28)
+        # 第一列：PDF图标
+        self.pdf_icon = PDFIconWidget(22)
         hl.addWidget(self.pdf_icon)
 
+        # 第二列：文件名（省略号）
         self.name_label = ElidedLabel(self.file_name)
         self.name_label.setFont(QFont("Microsoft YaHei", 11))
-        self.name_label.setMinimumWidth(400)  # 文件名最小宽度
+        self.name_label.setMinimumWidth(400)
         hl.addWidget(self.name_label, 1)  # stretch=1 让文件名占据剩余空间
 
-        # 第二列：处理状态（固定宽度，始终可见）
-        self.status_icon = QLabel()
-        self.status_icon.setFixedSize(18, 18)
-        self.status_icon.setStyleSheet("background:transparent;")
-        self.status_icon.setVisible(False)
-
-        self.status_label = QLabel("等待处理...")
-        self.status_label.setFont(QFont("Microsoft YaHei", 10))
-        self.status_label.setStyleSheet(f"color:{TEXT_SEC};background:transparent;")
-        self.status_label.setFixedWidth(120)  # 状态列固定宽度
-
-        # 状态容器（图标+文字）
+        # 第三列：处理状态（固定宽度）
         self.status_container = QWidget()
         self.status_container.setFixedWidth(140)
         self.status_container.setStyleSheet("background:transparent;")
         status_layout = QHBoxLayout(self.status_container)
         status_layout.setContentsMargins(0, 0, 0, 0)
         status_layout.setSpacing(6)
+        
+        self.status_icon = QLabel()
+        self.status_icon.setFixedSize(16, 16)
+        self.status_icon.setStyleSheet("background:transparent;")
+        self.status_icon.setVisible(False)
         status_layout.addWidget(self.status_icon)
+
+        self.status_label = QLabel("等待处理...")
+        self.status_label.setFont(QFont("Microsoft YaHei", 10))
+        self.status_label.setStyleSheet(f"color:{TEXT_SEC};background:transparent;")
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
 
         hl.addWidget(self.status_container)
-        hl.addSpacing(10)
 
     def set_status(self, text, icon_name="", color=""):
         self.status_label.setText(text)
         if icon_name and color:
-            self.status_icon.setPixmap(qta.icon(icon_name, color=color).pixmap(18, 18))
+            self.status_icon.setPixmap(qta.icon(icon_name, color=color).pixmap(16, 16))
             self.status_icon.setVisible(True)
         if color:
             self.status_label.setStyleSheet(f"color:{color};background:transparent;")
@@ -349,31 +348,76 @@ class DecryptPage(QWidget):
 
         self.pdf_list = QListWidget()
         self.pdf_list.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
-        # 无hover，无selected高亮
         self.pdf_list.setStyleSheet(f"""
-            QListWidget {{ background: transparent; border: none; outline: none; }}
-            QListWidget::item {{ background: transparent; padding: 0; border: none; }}
-            QScrollBar:vertical {{ width: 6px; background: transparent; }}
-            QScrollBar::handle:vertical {{ background: #d0d0d0; border-radius: 3px; min-height: 30px; }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+            QListWidget {{ 
+                background: transparent; 
+                border: none; 
+                outline: none;
+                padding: 0;
+                margin: 0;
+            }}
+            QListWidget::item {{ 
+                background: transparent; 
+                padding: 0; 
+                border: none;
+                margin: 0;
+            }}
+            QScrollBar:vertical {{ 
+                width: 6px; 
+                background: transparent; 
+            }}
+            QScrollBar::handle:vertical {{ 
+                background: #d0d0d0; 
+                border-radius: 3px; 
+                min-height: 30px; 
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ 
+                height: 0; 
+            }}
         """)
         vl.addWidget(self.pdf_list, 1)
         parent.addWidget(card, 1)
 
     def _build_stats_bar(self, parent):
         bar = QWidget()
-        bar.setFixedHeight(48)
+        bar.setFixedHeight(70)
         hl = QHBoxLayout(bar)
         hl.setContentsMargins(24, 0, 24, 0)
-        hl.setSpacing(24)
+        hl.setSpacing(32)
 
+        # 进度条区域
+        progress_container = QWidget()
+        progress_container.setStyleSheet("background:transparent;")
+        progress_layout = QVBoxLayout(progress_container)
+        progress_layout.setContentsMargins(0, 0, 0, 0)
+        progress_layout.setSpacing(8)
+        
         self.progress_bar = QProgressBar()
-        self.progress_bar.setFixedHeight(6)
+        self.progress_bar.setFixedHeight(24)
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setFormat("%v / %m")
-        self.progress_bar.setStyleSheet(f"QProgressBar {{ background: {BORDER}; border: none; border-radius: 3px; text-align: center; font-size: 10px; color: {TEXT_SEC}; }} QProgressBar::chunk {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {PRIMARY},stop:1 {PRIMARY_HOVER}); border-radius: 3px; }}")
-        hl.addWidget(self.progress_bar, 1)
+        self.progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                background: {BORDER};
+                border: none;
+                border-radius: 12px;
+                text-align: center;
+                font-size: 12px;
+                color: {TEXT};
+                font-weight: bold;
+                margin: 0;
+                padding: 0;
+            }}
+            QProgressBar::chunk {{
+                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {PRIMARY},stop:1 {PRIMARY_HOVER});
+                border-radius: 12px;
+            }}
+        """)
+        progress_layout.addWidget(self.progress_bar)
+        
+        hl.addWidget(progress_container, 1)
 
+        # 统计信息区域
         self.stat_success = self._stat("fa6s.circle-check", "0", "已成功", SUCCESS)
         self.stat_no_pwd = self._stat("fa6s.lock", "0", "无需处理", PRIMARY)
         self.stat_failed = self._stat("fa6s.trash-can", "0", "失败", ERROR)
@@ -384,25 +428,35 @@ class DecryptPage(QWidget):
 
     def _stat(self, icon_name, value, label, color):
         w = QWidget()
+        w.setStyleSheet("background:transparent;")
         hl = QHBoxLayout(w)
         hl.setContentsMargins(0, 0, 0, 0)
-        hl.setSpacing(8)
+        hl.setSpacing(12)
+        
+        # 图标
         ic = QLabel()
-        ic.setPixmap(qta.icon(icon_name, color=color).pixmap(20, 20))
-        ic.setFixedSize(20, 20)
+        ic.setPixmap(qta.icon(icon_name, color=color).pixmap(32, 32))
+        ic.setFixedSize(32, 32)
         ic.setStyleSheet("background:transparent;")
         hl.addWidget(ic)
+        
+        # 数字和标签
         vl = QVBoxLayout()
-        vl.setSpacing(0)
+        vl.setSpacing(4)
         vl.setContentsMargins(0, 0, 0, 0)
+        
         val = QLabel(value)
-        val.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
+        val.setFont(QFont("Microsoft YaHei", 20, QFont.Bold))
         val.setStyleSheet(f"color:{color};background:transparent;")
+        val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         vl.addWidget(val)
+        
         lbl = QLabel(label)
-        lbl.setFont(QFont("Microsoft YaHei", 9))
+        lbl.setFont(QFont("Microsoft YaHei", 10))
         lbl.setStyleSheet(f"color:{TEXT_SEC};background:transparent;")
+        lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         vl.addWidget(lbl)
+        
         hl.addLayout(vl)
         w._value_label = val
         return w
@@ -533,7 +587,8 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self):
         self.setWindowTitle("No PDF Password")
-        self.setFixedSize(1600, 1200)
+        self.setMinimumSize(1000, 700)
+        self.resize(1200, 900)
         self.setStyleSheet(f"QMainWindow {{ background: {BG}; }}")
 
         central = QWidget()
@@ -686,6 +741,8 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.warning(self, "失败", msg)
 
+
+    
     def _start_decrypt(self):
         folder = self.decrypt_page.path_edit.text()
         if not folder:
